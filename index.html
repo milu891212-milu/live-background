@@ -3,9 +3,364 @@
 <head>
 <meta charset="utf-8">
 <title>直播底圖產生器</title>
-<meta http-equiv="refresh" content="0; url=直播底圖產生器.html">
+<link rel="stylesheet" href="字型/fonts.css">
+<style>
+  :root { --bg:#f3f5f8; --card:#fff; --line:#d5dbe3; --ink:#1d2430; --muted:#6b7684; --accent:#1f6fd1; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"Microsoft JhengHei","微軟正黑體",sans-serif; }
+  header { padding:14px 24px; background:#1d2430; color:#fff; font-size:20px; font-weight:bold; }
+  main { display:flex; gap:20px; padding:20px 24px; align-items:flex-start; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px; width:340px; flex:none; }
+  .preview { flex:1; min-width:0; }
+  .preview canvas { width:100%; height:auto; border:1px solid var(--line); border-radius:6px; display:block; background:#000; }
+  label { display:block; font-size:14px; color:var(--muted); margin:12px 0 4px; }
+  input, select { width:100%; padding:8px 10px; font-size:17px; border:1px solid var(--line); border-radius:6px; font-family:inherit; }
+  .row { display:flex; gap:8px; }
+  .row > div { flex:1; }
+  .row > div.rank { flex:0 0 100px; }
+  h3 { margin:18px 0 0; font-size:15px; padding-top:12px; border-top:1px solid var(--line); }
+  button { font-family:inherit; font-size:16px; border-radius:6px; cursor:pointer; padding:10px 14px; border:1px solid var(--line); background:#fff; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:bold; width:100%; margin-top:18px; padding:13px; font-size:18px; }
+  .swap { width:100%; margin-top:12px; }
+  .versions { display:flex; gap:8px; }
+  .versions button { flex:1; }
+  .versions button.on { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:bold; }
+  .hint { font-size:13px; color:var(--muted); margin-top:10px; line-height:1.6; }
+  .warn { color:#c0392b; font-size:13px; margin-top:8px; line-height:1.6; display:none; }
+  .note { background:#fff6db; border:1px solid #f0d58a; color:#7a5a00; font-size:13px; padding:8px 10px; border-radius:6px; margin-top:10px; line-height:1.6; display:none; }
+</style>
 </head>
 <body>
-<a href="直播底圖產生器.html">前往直播底圖產生器</a>
+<header>直播底圖產生器</header>
+<main>
+  <div class="panel">
+    <label>比賽</label>
+    <select id="comp"></select>
+
+    <label>版本</label>
+    <div class="versions" id="versions"></div>
+    <div class="note" id="estNote">⚠ 這個版本還沒對照過實際直播截圖，右上角階段文字的位置是估計的。</div>
+
+    <div id="editionBox">
+      <label>屆數（例：第1屆）</label>
+      <input id="edition">
+    </div>
+
+    <div id="subtitleBox">
+      <label>右上角階段文字（例：第19屆循環圈第6輪、本賽8強）</label>
+      <input id="subtitle">
+    </div>
+
+    <div id="commBox">
+      <label>解說老師（例：白昕卉四段，「解說」兩字會自動加上）</label>
+      <input id="commentator">
+    </div>
+
+    <h3>⚫ 黑方（左邊）</h3>
+    <div class="row">
+      <div><label>姓名</label><input id="bName"></div>
+      <div class="rank"><label>段位／頭銜</label><input id="bRank" list="ranks"></div>
+    </div>
+    <div class="schoolBox"><label>學校</label><input id="bSchool"></div>
+
+    <h3>⚪ 白方（右邊）</h3>
+    <div class="row">
+      <div><label>姓名</label><input id="wName"></div>
+      <div class="rank"><label>段位／頭銜</label><input id="wRank" list="ranks"></div>
+    </div>
+    <div class="schoolBox"><label>學校</label><input id="wSchool"></div>
+
+    <button class="swap" id="swap">⇄ 黑白交換</button>
+
+    <label>輸出尺寸</label>
+    <select id="size">
+      <option value="1">1920 × 1080（一般直播用）</option>
+      <option value="2">3840 × 2160（4K）</option>
+    </select>
+
+    <button class="primary" id="download">⬇ 下載底圖</button>
+    <div class="warn" id="fontWarn">⚠ 這台電腦沒有安裝「華康行楷體」（付費字型），龍星賽的屆數和階段字會跟正式底圖不同。請改用有安裝的電腦產生。</div>
+    <div class="hint">右邊的預覽就是下載後的樣子。上次輸入的內容會自動記住。</div>
+  </div>
+  <div class="preview"><canvas id="cv" width="1920" height="1080"></canvas></div>
+</main>
+
+<datalist id="ranks">
+  <option>初段</option><option>二段</option><option>三段</option><option>四段</option><option>五段</option>
+  <option>六段</option><option>七段</option><option>八段</option><option>九段</option>
+</datalist>
+
+<script>
+// 字型：前三套是免費字型，已放在網站的 字型\ 資料夾（別台電腦不用安裝）；
+// 「LBG xxx」是網站上的版本，載不到時才用電腦本機安裝的
+// 華康行楷是付費字型，不能放上網站，龍星賽要電腦本機有安裝
+const FONTS = {
+  ming:   '"LBG Ming", "GenRyuMin TW", "PMingLiU", serif',                 // 源流明體：姓名、大部分階段文字
+  round:  '"LBG Round", "Gen Jyuu Gothic", "Microsoft JhengHei", sans-serif', // 源柔黑體：國手賽
+  gothic: '"LBG Gothic", "GenYoGothic TW", "Microsoft JhengHei", sans-serif', // 源樣黑體：碁聖賽
+  xingkai: '"DFXingKaiW5-B5", "華康行楷體W5", "DFKai-SB", serif',          // 華康行楷體：龍星賽
+};
+const FONT = FONTS.ming;
+
+// ===== 所有比賽共用的版面（座標以 1920×1080 為準）=====
+// text：單行文字，置中，太長會自動縮小
+// nameRank：姓名＋段位並排，靠左；太長時先縮小間距，再縮小姓名
+const COMMON = [
+  // 上方黑白名牌（中間會被 AI 勝率條蓋住，所以名字放在兩側露出的位置）
+  { type: 'text', key: 'bName', x: 641,  y: 95, size: 36, weight: 600, color: '#ffffff', maxWidth: 190 },
+  { type: 'text', key: 'wName', x: 1282, y: 95, size: 36, weight: 600, color: '#111111', maxWidth: 190 },
+  // 左下黑方（右邊要留給計時器框，從 x=309 開始）
+  { type: 'nameRank', name: 'bName', rank: 'bRank', x: 38, y: 1018, size: 60, rankSize: 28, rankDy: 12, gap: 20, minGap: 6, maxRight: 300, weight: 600, color: '#ffffff' },
+  // 右下白方（計時器框在左邊）
+  { type: 'nameRank', name: 'wName', rank: 'wRank', x: 1625, y: 1018, size: 60, rankSize: 28, rankDy: 12, gap: 27, minGap: 6, maxRight: 1888, weight: 600, color: '#111111' },
+];
+
+// 解說版：左上解說鏡頭下方的白色斜條
+const COMMENTATOR = { type: 'text', key: 'commentator', suffix: '解說', suffixGap: 16, x: 241, y: 463, size: 32, weight: 500, color: '#111111', maxWidth: 380 };
+
+// 吳清源杯：沒有計時器框，姓名＋段位同樣大小、置中在選手格底部
+const BOTTOM_CENTER = [
+  { type: 'text', key: 'bName', suffixKey: 'bRank', suffixGap: 14, x: 240,  y: 1015, size: 46, weight: 500, color: '#ffffff', maxWidth: 410 },
+  { type: 'text', key: 'wName', suffixKey: 'wRank', suffixGap: 14, x: 1680, y: 1015, size: 46, weight: 500, color: '#111111', maxWidth: 410 },
+];
+
+// ===== 各比賽、各版本只差「底圖」和「右上角階段文字」=====
+// stage：右上角的文字，key 'subtitle' = 階段、'edition' = 屆數、'bSchool'/'wSchool' = 學校
+// （有用到哪個 key，左邊才會出現那個輸入欄）
+// verified: true = 已對照實際直播截圖量過；false = 位置是估計的
+const COMPETITIONS = [
+  { id: 'qiwang', title: '棋王賽', versions: {
+    live: { bg: 'qiwang_live', verified: true, stage: [{ key: 'subtitle', x: 1678, y: 238, size: 40, color: '#111111' }] },
+    comm: { bg: 'qiwang_comm', verified: true, stage: [{ key: 'subtitle', x: 1683, y: 149, size: 33, color: '#111111' }] },
+  }},
+  { id: 'guoshou', title: '中環國手賽', versions: {
+    live: { bg: 'guoshou_live', verified: true, stage: [{ key: 'subtitle', x: 1680, y: 356, size: 48, weight: 500, font: 'round', color: '#eef7f7', stroke: '#4f5955', strokeWidth: 6 }] },
+    comm: { bg: 'guoshou_comm', verified: true, stage: [{ key: 'subtitle', x: 1680, y: 162, size: 30, weight: 300, font: 'round', color: '#eff3f4' }] },
+  }},
+  { id: 'qisheng', title: '中環碁聖賽', versions: {
+    live: { bg: 'qisheng_live', verified: true, stage: [{ key: 'subtitle', x: 1682, y: 366, size: 41, weight: 700, font: 'gothic', color: '#2a3824' }] },
+    comm: { bg: 'qisheng_comm', verified: true, stage: [{ key: 'subtitle', x: 1831, y: 71, size: 29, weight: 700, font: 'gothic', color: '#2a3824', maxWidth: 160 }] },
+  }},
+  { id: 'longxing', title: '龍星賽', versions: {
+    comm: { bg: 'longxing_comm', verified: true, stage: [
+      // 「第1屆」照原本的寫法：「第」在左上、「1屆」錯開在右下
+      { type: 'stagger', key: 'edition', x1: 1480, y1: 76, x2: 1502, y2: 103, size: 32, font: 'xingkai', weight: 400, color: '#d0e2ee' },
+      { key: 'subtitle', x: 1823, y: 68, size: 36, font: 'xingkai', weight: 400, color: '#d0e2ee', maxWidth: 180 },
+    ]},
+  }},
+  { id: 'xuanle', title: '玄樂盃', versions: {
+    live: { bg: 'xuanle_live', verified: true, stage: [{ key: 'subtitle', x: 1675, y: 499, size: 30, color: '#111111' }] },
+    comm: { bg: 'xuanle_comm', verified: true, stage: [{ key: 'subtitle', x: 1680, y: 156, size: 30, color: '#111111' }] },
+  }},
+  { id: 'wuqingyuan', title: '吳清源杯', versions: {
+    live: { bg: 'wuqingyuan_live', verified: true, bottom: BOTTOM_CENTER, stage: [
+      { key: 'edition',  x: 1668, y: 69,  size: 29, weight: 600, color: '#eef8fe' },
+      { key: 'subtitle', x: 1668, y: 140, size: 29, weight: 600, color: '#eef8fe', maxWidth: 400 },
+    ]},
+  }},
+  { id: 'shijie', title: '大學生十傑賽', versions: {
+    // 沒有階段文字，改成兩邊淺藍條上的學校
+    // 下方姓名段位照設計稿：黑方整組往右；姓名和段位的間隔兩邊統一
+    live: { bg: 'shijie_live', verified: true, bottom: [{ ...COMMON[2], x: 43, gap: 9 }, { ...COMMON[3], x: 1621, gap: 9 }], stage: [
+      { key: 'bSchool', x: 243,  y: 510, size: 36, weight: 600, color: '#000000', maxWidth: 400 },
+      { key: 'wSchool', x: 1685, y: 510, size: 36, weight: 600, color: '#000000', maxWidth: 400 },
+    ]},
+  }},
+];
+const VERSION_NAMES = { live: '一般', comm: '解說' };
+
+const DEFAULTS = { edition: '第1屆', subtitle: '第19屆循環圈第6輪', commentator: '白昕卉四段', bName: '楊博崴', bRank: '八段', wName: '陳詩淵', wRank: '九段', bSchool: '台灣大學', wSchool: '清華大學' };
+const FIELDS = Object.keys(DEFAULTS);
+
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const images = {};
+let version = 'live';
+
+function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+function comp() { return COMPETITIONS.find(c => c.id === $('comp').value); }
+function current() { return comp().versions[version]; }
+
+function setFont(size, weight, font) { ctx.font = `${weight} ${size}px ${FONTS[font] || FONT}`; }
+
+// 在寬度限制內找最大字級
+function fitSize(text, size, weight, maxWidth, font) {
+  setFont(size, weight, font);
+  while (size > 10 && ctx.measureText(text).width > maxWidth) { size -= 1; setFont(size, weight, font); }
+  return size;
+}
+
+// 畫一段字（有外框的話先描邊再填色）
+function paint(it, s, x, y) {
+  if (it.stroke) {
+    ctx.save();
+    ctx.lineJoin = 'round'; ctx.strokeStyle = it.stroke; ctx.lineWidth = it.strokeWidth;
+    ctx.strokeText(s, x, y);
+    ctx.restore();
+  }
+  ctx.fillStyle = it.color;
+  ctx.fillText(s, x, y);
+}
+
+// 置中文字；suffix（例如「解說」或段位）會接在後面、中間留 suffixGap
+function drawText(it, s, suffix) {
+  if (!s) return;
+  const weight = it.weight || 700;
+  const size = fitSize(s + (suffix ? '　' + suffix : ''), it.size, weight, it.maxWidth || 420, it.font);
+  setFont(size, weight, it.font);
+  ctx.textAlign = 'left';
+  const gap = suffix ? it.suffixGap * size / it.size : 0;
+  const w = ctx.measureText(s).width + (suffix ? gap + ctx.measureText(suffix).width : 0);
+  const x = it.x - w / 2;
+  paint(it, s, x, it.y);
+  if (suffix) paint(it, suffix, x + ctx.measureText(s).width + gap, it.y);
+}
+
+// 龍星賽的「第1屆」：第一個字在左上，其餘錯開在右下
+function drawStagger(it, s) {
+  if (!s) return;
+  setFont(it.size, it.weight, it.font);
+  ctx.textAlign = 'center'; paint(it, s[0], it.x1, it.y1);
+  ctx.textAlign = 'left';   paint(it, s.slice(1), it.x2, it.y2);
+}
+
+function drawNameRank(it, name, rank) {
+  ctx.fillStyle = it.color; ctx.textAlign = 'left';
+  setFont(it.size, it.weight);
+  const fullW = ctx.measureText(name).width;
+  setFont(it.rankSize, it.weight);
+  const rankW = rank ? ctx.measureText(rank).width : 0;
+  const room = it.maxRight - it.x;
+  // 先縮間距，還放不下才縮姓名
+  let gap = rank ? it.gap : 0;
+  if (rank && fullW + gap + rankW > room) gap = Math.max(it.minGap, room - fullW - rankW);
+  const size = fitSize(name, it.size, it.weight, room - gap - rankW);
+  setFont(size, it.weight);
+  const nameW = ctx.measureText(name).width;
+  ctx.fillText(name, it.x, it.y);
+  if (rank) {
+    setFont(it.rankSize, it.weight);
+    ctx.fillText(rank, it.x + nameW + gap, it.y + it.rankDy * (size / it.size));
+  }
+}
+
+// 網站上的字型切成很多小塊，畫之前先把這次用到的字下載好
+function fontsReady(items, d) {
+  return Promise.all(items.map(it => {
+    const text = [it.key, it.suffixKey, it.name, it.rank].map(k => d[k] || '').join('') + (it.suffix || '');
+    return document.fonts.load(`${it.weight || 700} 40px ${FONTS[it.font] || FONT}`, text || ' ');
+  })).catch(() => {});
+}
+
+// 回傳 false 代表畫到一半又有新的輸入，這次作廢
+let renderSeq = 0;
+async function render(scale) {
+  const seq = ++renderSeq;
+  const v = current();
+  const d = {}; FIELDS.forEach(f => d[f] = $(f).value.trim());
+  const items = [...(v.bottom ? [...COMMON.slice(0, 2), ...v.bottom] : COMMON), ...v.stage];
+  if (version === 'comm') items.push(COMMENTATOR);
+  await fontsReady(items, d);
+  if (seq !== renderSeq) return false;
+
+  cv.width = 1920 * scale; cv.height = 1080 * scale;
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.fillStyle = '#333'; ctx.fillRect(0, 0, 1920, 1080);
+  if (images[v.bg]) ctx.drawImage(images[v.bg], 0, 0, 1920, 1080);
+  ctx.textBaseline = 'middle';
+
+  for (const it of items) {
+    if (it.type === 'nameRank') drawNameRank(it, d[it.name], d[it.rank]);
+    else if (it.type === 'stagger') drawStagger(it, d[it.key]);
+    else drawText(it, d[it.key], it.suffix || d[it.suffixKey]);
+  }
+  return true;
+}
+
+// 底圖資料檔用到才載入（每張約 1MB）
+function loadBg(key) {
+  if (images[key] || (window.BG && window.BG[key])) return finish();
+  const s = document.createElement('script');
+  s.src = `底圖資料/${key}.js`;
+  s.onload = finish;
+  document.head.appendChild(s);
+  function finish() {
+    if (images[key]) return render(1);
+    const img = new Image();
+    img.onload = () => { images[key] = img; render(1); };
+    img.src = window.BG[key];
+  }
+}
+
+function showVersion() {
+  const c = comp();
+  if (!c.versions[version]) version = Object.keys(c.versions)[0];
+  const box = $('versions'); box.innerHTML = '';
+  for (const k of Object.keys(c.versions)) {
+    const b = document.createElement('button');
+    b.textContent = VERSION_NAMES[k] + '版';
+    if (k === version) b.className = 'on';
+    b.onclick = () => { version = k; refresh(); };
+    box.appendChild(b);
+  }
+  $('commBox').style.display = version === 'comm' ? '' : 'none';
+  const uses = key => current().stage.some(it => it.key === key);
+  $('editionBox').style.display = uses('edition') ? '' : 'none';
+  $('subtitleBox').style.display = uses('subtitle') ? '' : 'none';
+  document.querySelectorAll('.schoolBox').forEach(el => el.style.display = uses('bSchool') ? '' : 'none');
+  $('estNote').style.display = current().verified ? 'none' : 'block';
+  $('fontWarn').style.display = current().stage.some(it => it.font === 'xingkai') && !hasXingkai ? 'block' : 'none';
+  loadBg(current().bg);
+}
+
+function refresh() {
+  FIELDS.forEach(f => store('lbg_' + f, $(f).value));
+  store('lbg_comp', $('comp').value);
+  store('lbg_version', version);
+  showVersion();
+  render(1);
+}
+
+async function download() {
+  const scale = +$('size').value;
+  if (!await render(scale)) return;
+  const sub = current().stage.some(it => it.key === 'subtitle') ? $('subtitle').value.trim() : '';
+  const name = [comp().title + VERSION_NAMES[version] + '版', sub, `${$('bName').value.trim()}vs${$('wName').value.trim()}`].filter(Boolean).join('_');
+  cv.toBlob(b => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = name.replace(/[\\/:*?"<>|]/g, '') + '.png';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    render(1);
+  }, 'image/png');
+}
+
+// 初始化
+const hasXingkai = checkXingkai();
+for (const c of COMPETITIONS) $('comp').add(new Option(c.title, c.id));
+const savedComp = store('lbg_comp'); if (savedComp && COMPETITIONS.some(c => c.id === savedComp)) $('comp').value = savedComp;
+version = store('lbg_version') || 'live';
+FIELDS.forEach(f => { const v = store('lbg_' + f); $(f).value = v !== null ? v : DEFAULTS[f]; });
+showVersion();
+
+FIELDS.forEach(f => $(f).addEventListener('input', refresh));
+$('comp').addEventListener('change', refresh);
+$('swap').addEventListener('click', () => {
+  [$('bName').value, $('wName').value] = [$('wName').value, $('bName').value];
+  [$('bRank').value, $('wRank').value] = [$('wRank').value, $('bRank').value];
+  [$('bSchool').value, $('wSchool').value] = [$('wSchool').value, $('bSchool').value];
+  refresh();
+});
+$('download').addEventListener('click', download);
+
+// 檢查電腦有沒有裝華康行楷：跟備用字型量出來的寬度一樣就代表沒裝
+function checkXingkai() {
+  const s = '龍星賽第屆本強決局WwMm19';
+  ctx.font = '400 40px monospace'; const a = ctx.measureText(s).width;
+  ctx.font = '400 40px "DFXingKaiW5-B5", "華康行楷體W5", monospace'; const b = ctx.measureText(s).width;
+  return a !== b;
+}
+</script>
 </body>
 </html>
