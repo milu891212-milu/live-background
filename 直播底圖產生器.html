@@ -160,8 +160,8 @@ const COMPETITIONS = [
   }},
   { id: 'shijie', title: '大學生十傑賽', versions: {
     // 沒有階段文字，改成兩邊淺藍條上的學校
-    // 下方姓名段位照設計稿：黑方整組往右、姓名和段位比較靠近
-    live: { bg: 'shijie_live', verified: true, bottom: [{ ...COMMON[2], x: 43, gap: 9 }, { ...COMMON[3], x: 1621 }], stage: [
+    // 下方姓名段位照設計稿：黑方整組往右；姓名和段位的間隔兩邊統一
+    live: { bg: 'shijie_live', verified: true, bottom: [{ ...COMMON[2], x: 43, gap: 9 }, { ...COMMON[3], x: 1621, gap: 9 }], stage: [
       { key: 'bSchool', x: 243,  y: 510, size: 36, weight: 600, color: '#000000', maxWidth: 400 },
       { key: 'wSchool', x: 1685, y: 510, size: 36, weight: 600, color: '#000000', maxWidth: 400 },
     ]},
