@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>直播底圖產生器</title>
+<link rel="stylesheet" href="字型/fonts.css">
 <style>
   :root { --bg:#f3f5f8; --card:#fff; --line:#d5dbe3; --ink:#1d2430; --muted:#6b7684; --accent:#1f6fd1; }
   * { box-sizing:border-box; }
@@ -74,7 +75,7 @@
     </select>
 
     <button class="primary" id="download">⬇ 下載底圖</button>
-    <div class="warn" id="fontWarn">⚠ 這台電腦沒有安裝「源流明體」，字型會跟正式底圖不同。</div>
+    <div class="warn" id="fontWarn">⚠ 這台電腦沒有安裝「華康行楷體」（付費字型），龍星賽的屆數和階段字會跟正式底圖不同。請改用有安裝的電腦產生。</div>
     <div class="hint">右邊的預覽就是下載後的樣子。上次輸入的內容會自動記住。</div>
   </div>
   <div class="preview"><canvas id="cv" width="1920" height="1080"></canvas></div>
@@ -86,12 +87,14 @@
 </datalist>
 
 <script>
-// 字型（都是這台電腦已安裝的字型）
+// 字型：前三套是免費字型，已放在網站的 字型\ 資料夾（別台電腦不用安裝）；
+// 「LBG xxx」是網站上的版本，載不到時才用電腦本機安裝的
+// 華康行楷是付費字型，不能放上網站，龍星賽要電腦本機有安裝
 const FONTS = {
-  ming:   '"GenRyuMin TW", "PMingLiU", serif',                       // 源流明體：姓名、大部分階段文字
-  round:  '"Gen Jyuu Gothic", "Microsoft JhengHei", sans-serif',      // 源柔黑體：國手賽
-  gothic: '"GenYoGothic TW", "Microsoft JhengHei", sans-serif',       // 源樣黑體：碁聖賽
-  xingkai: '"DFXingKaiW5-B5", "華康行楷體W5", "DFKai-SB", serif',      // 華康行楷體：龍星賽
+  ming:   '"LBG Ming", "GenRyuMin TW", "PMingLiU", serif',                 // 源流明體：姓名、大部分階段文字
+  round:  '"LBG Round", "Gen Jyuu Gothic", "Microsoft JhengHei", sans-serif', // 源柔黑體：國手賽
+  gothic: '"LBG Gothic", "GenYoGothic TW", "Microsoft JhengHei", sans-serif', // 源樣黑體：碁聖賽
+  xingkai: '"DFXingKaiW5-B5", "華康行楷體W5", "DFKai-SB", serif',          // 華康行楷體：龍星賽
 };
 const FONT = FONTS.ming;
 
@@ -228,22 +231,37 @@ function drawNameRank(it, name, rank) {
   }
 }
 
-function render(scale) {
+// 網站上的字型切成很多小塊，畫之前先把這次用到的字下載好
+function fontsReady(items, d) {
+  return Promise.all(items.map(it => {
+    const text = [it.key, it.suffixKey, it.name, it.rank].map(k => d[k] || '').join('') + (it.suffix || '');
+    return document.fonts.load(`${it.weight || 700} 40px ${FONTS[it.font] || FONT}`, text || ' ');
+  })).catch(() => {});
+}
+
+// 回傳 false 代表畫到一半又有新的輸入，這次作廢
+let renderSeq = 0;
+async function render(scale) {
+  const seq = ++renderSeq;
   const v = current();
   const d = {}; FIELDS.forEach(f => d[f] = $(f).value.trim());
+  const items = [...(v.bottom ? [...COMMON.slice(0, 2), ...v.bottom] : COMMON), ...v.stage];
+  if (version === 'comm') items.push(COMMENTATOR);
+  await fontsReady(items, d);
+  if (seq !== renderSeq) return false;
+
   cv.width = 1920 * scale; cv.height = 1080 * scale;
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   ctx.fillStyle = '#333'; ctx.fillRect(0, 0, 1920, 1080);
   if (images[v.bg]) ctx.drawImage(images[v.bg], 0, 0, 1920, 1080);
   ctx.textBaseline = 'middle';
 
-  const items = [...(v.bottom ? [...COMMON.slice(0, 2), ...v.bottom] : COMMON), ...v.stage];
-  if (version === 'comm') items.push(COMMENTATOR);
   for (const it of items) {
     if (it.type === 'nameRank') drawNameRank(it, d[it.name], d[it.rank]);
     else if (it.type === 'stagger') drawStagger(it, d[it.key]);
     else drawText(it, d[it.key], it.suffix || d[it.suffixKey]);
   }
+  return true;
 }
 
 // 底圖資料檔用到才載入（每張約 1MB）
@@ -275,6 +293,7 @@ function showVersion() {
   $('commBox').style.display = version === 'comm' ? '' : 'none';
   $('editionBox').style.display = (current().fields || []).includes('edition') ? '' : 'none';
   $('estNote').style.display = current().verified ? 'none' : 'block';
+  $('fontWarn').style.display = current().stage.some(it => it.font === 'xingkai') && !hasXingkai ? 'block' : 'none';
   loadBg(current().bg);
 }
 
@@ -286,9 +305,9 @@ function refresh() {
   render(1);
 }
 
-function download() {
+async function download() {
   const scale = +$('size').value;
-  render(scale);
+  if (!await render(scale)) return;
   const name = [comp().title + VERSION_NAMES[version] + '版', $('subtitle').value.trim(), `${$('bName').value.trim()}vs${$('wName').value.trim()}`].filter(Boolean).join('_');
   cv.toBlob(b => {
     const a = document.createElement('a');
@@ -301,6 +320,7 @@ function download() {
 }
 
 // 初始化
+const hasXingkai = checkXingkai();
 for (const c of COMPETITIONS) $('comp').add(new Option(c.title, c.id));
 const savedComp = store('lbg_comp'); if (savedComp && COMPETITIONS.some(c => c.id === savedComp)) $('comp').value = savedComp;
 version = store('lbg_version') || 'live';
@@ -316,14 +336,13 @@ $('swap').addEventListener('click', () => {
 });
 $('download').addEventListener('click', download);
 
-// 檢查電腦有沒有裝源流明體：跟備用字型量出來的寬度一樣就代表沒裝
-(function checkFont() {
-  const s = '棋王賽循環圈WwMm19';
-  ctx.font = '600 40px monospace'; const a = ctx.measureText(s).width;
-  ctx.font = '600 40px "GenRyuMin TW", monospace'; const b = ctx.measureText(s).width;
-  if (a === b) $('fontWarn').style.display = 'block';
-  render(1);
-})();
+// 檢查電腦有沒有裝華康行楷：跟備用字型量出來的寬度一樣就代表沒裝
+function checkXingkai() {
+  const s = '龍星賽第屆本強決局WwMm19';
+  ctx.font = '400 40px monospace'; const a = ctx.measureText(s).width;
+  ctx.font = '400 40px "DFXingKaiW5-B5", "華康行楷體W5", monospace'; const b = ctx.measureText(s).width;
+  return a !== b;
+}
 </script>
 </body>
 </html>

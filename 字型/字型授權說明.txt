@@ -1,0 +1,11 @@
+本資料夾的字型是從以下免費字型切塊而成（只為了讓網頁按需下載用到的字）：
+
+  源流明體 GenRyuMin TW（Medium / SemiBold / Bold）
+  源柔ゴシック Gen Jyuu Gothic（Light / Medium）
+  源樣黑體 GenYoGothic TW（Bold）
+
+以上字型皆由 ButTaiwan / 自家製作 依 SIL Open Font License 1.1 授權發布，
+源自 Adobe 與 Google 的 Source Han 思源字型。
+授權全文：https://openfontlicense.org/open-font-license-official-text/
+
+龍星賽使用的華康行楷體為付費商用字型，未包含在此。
