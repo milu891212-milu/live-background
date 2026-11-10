@@ -144,7 +144,7 @@ const COMPETITIONS = [
   { id: 'longxing', title: '龍星賽', versions: {
     // 一般版沒有實際截圖：照解說版的排法，屆數在龍頭左邊、階段在龍頭右邊（位置是估計的）
     live: { bg: 'longxing_live', verified: false, stage: [
-      { type: 'stagger', key: 'edition', x1: 1505, y1: 165, x2: 1530, y2: 197, size: 38, font: 'xingkai', weight: 400, color: '#d0e2ee' },
+      { type: 'stagger', key: 'edition', x1: 1505, y1: 165, x3: 1571, y3: 197, size: 38, font: 'xingkai', weight: 400, color: '#d0e2ee' },
       { key: 'subtitle', x: 1832, y: 160, size: 40, font: 'xingkai', weight: 400, color: '#d0e2ee', maxWidth: 160 },
     ]},
     comm: { bg: 'longxing_comm', verified: true, stage: [
@@ -236,6 +236,12 @@ function drawStagger(it, s) {
   if (!s) return;
   setFont(it.size, it.weight, it.font);
   ctx.textAlign = 'center'; paint(it, s[0], it.x1, it.y1);
+  if (it.x3 != null && s.length > 2) {
+    // 三段階梯：「屆」在右下 (x3,y3)，數字放在「第」和「屆」正中間
+    paint(it, s.slice(-1), it.x3, it.y3);
+    paint(it, s.slice(1, -1), (it.x1 + it.x3) / 2, (it.y1 + it.y3) / 2);
+    return;
+  }
   ctx.textAlign = 'left';   paint(it, s.slice(1), it.x2, it.y2);
 }
 
