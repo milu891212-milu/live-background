@@ -159,13 +159,14 @@ const COMPETITIONS = [
     ]},
   }},
   // 棋仙戰、三星杯沒有實際截圖：欄位跟其他比賽共用，階段文字放在右上角比賽名稱下方（位置是估計的）
+  // 世界賽：下方姓名段位跟吳清源杯一樣置中
   { id: 'qixian', title: '棋仙戰', versions: {
-    live: { bg: 'qixian_live', verified: false, stage: [{ key: 'subtitle', x: 1682, y: 285, size: 36, weight: 700, font: 'gothic', color: '#111111' }] },
-    comm: { bg: 'qixian_comm', verified: false, stage: [{ key: 'subtitle', x: 1682, y: 285, size: 36, weight: 700, font: 'gothic', color: '#111111' }] },
+    live: { bg: 'qixian_live', verified: false, bottom: BOTTOM_CENTER, stage: [{ key: 'subtitle', x: 1682, y: 285, size: 36, weight: 700, font: 'gothic', color: '#111111' }] },
+    comm: { bg: 'qixian_comm', verified: false, bottom: BOTTOM_CENTER, stage: [{ key: 'subtitle', x: 1682, y: 285, size: 36, weight: 700, font: 'gothic', color: '#111111' }] },
   }},
   { id: 'samsung', title: '三星杯', versions: {
-    live: { bg: 'samsung_live', verified: false, stage: [{ key: 'subtitle', x: 1676, y: 425, size: 36, weight: 700, font: 'gothic', color: '#ffffff' }] },
-    comm: { bg: 'samsung_comm', verified: false, stage: [{ key: 'subtitle', x: 1676, y: 425, size: 36, weight: 700, font: 'gothic', color: '#ffffff' }] },
+    live: { bg: 'samsung_live', verified: false, bottom: BOTTOM_CENTER, stage: [{ key: 'subtitle', x: 1676, y: 425, size: 36, weight: 700, font: 'gothic', color: '#ffffff' }] },
+    comm: { bg: 'samsung_comm', verified: false, bottom: BOTTOM_CENTER, stage: [{ key: 'subtitle', x: 1676, y: 425, size: 36, weight: 700, font: 'gothic', color: '#ffffff' }] },
   }},
   { id: 'shijie', title: '大學生十傑賽', versions: {
     // 沒有階段文字，改成兩邊淺藍條上的學校
