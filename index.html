@@ -142,6 +142,11 @@ const COMPETITIONS = [
     comm: { bg: 'qisheng_comm', verified: true, stage: [{ key: 'subtitle', x: 1831, y: 71, size: 29, weight: 700, font: 'gothic', color: '#2a3824', maxWidth: 160 }] },
   }},
   { id: 'longxing', title: '龍星賽', versions: {
+    // 一般版沒有實際截圖：照解說版的排法，屆數在龍頭左邊、階段在龍頭右邊（位置是估計的）
+    live: { bg: 'longxing_live', verified: false, stage: [
+      { type: 'stagger', key: 'edition', x1: 1505, y1: 165, x2: 1530, y2: 197, size: 38, font: 'xingkai', weight: 400, color: '#d0e2ee' },
+      { key: 'subtitle', x: 1832, y: 160, size: 40, font: 'xingkai', weight: 400, color: '#d0e2ee', maxWidth: 160 },
+    ]},
     comm: { bg: 'longxing_comm', verified: true, stage: [
       // 「第1屆」照原本的寫法：「第」在左上、「1屆」錯開在右下
       { type: 'stagger', key: 'edition', x1: 1480, y1: 76, x2: 1502, y2: 103, size: 32, font: 'xingkai', weight: 400, color: '#d0e2ee' },
